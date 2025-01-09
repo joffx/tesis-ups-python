@@ -38,8 +38,8 @@ pipeline = InferencePipeline.init(
     max_detections=10,
     mask_decode_mode="accurate",
     tradeoff_factor=0.2,
-    active_learning_enabled=False,
-    max_fps=60,
+    active_learning_enabled=True,
+    max_fps=30,
 )
 
 # Iniciar la pipeline
