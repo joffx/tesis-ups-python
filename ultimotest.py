@@ -8,13 +8,6 @@ from inference.core.interfaces.camera.entities import VideoFrame  # Asegúrate d
 import requests
 from datetime import datetime
 
-def write_to_csv(data):
-    with open('deteccion_arma.csv', mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(['Tiempo', 'Precisión'])
-        for row in data:
-            writer.writerow(row)
-
 # Almacena los datos en una lista en lugar de escribir directamente en el archivo
 data_to_write = []
 
@@ -61,6 +54,7 @@ def on_prediction_custom(predictions, frame):
                 # Verificar que el archivo se guardó correctamente antes de enviarlo
                 if os.path.exists(image_filename):
                     with open(image_filename, 'rb') as image_file:
+                        print(f"Arma detectada - Tiempo: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}, Precisión: {precision}")
                         headers = {
                             # Asegúrate de enviar cabeceras si es necesario
                         }
@@ -70,7 +64,7 @@ def on_prediction_custom(predictions, frame):
                         }
                         files = {'file': (image_filename, image_file, 'image/jpeg')}  # Especifica el tipo MIME correcto
                         
-                        response = requests.post('http://localhost:5003/api/reports/upload', files=files, data=data, headers=headers)
+                        response = requests.post('https://king-prawn-app-okmlu.ondigitalocean.app//api/reports/upload', files=files, data=data, headers=headers)
                         if response.status_code == 200:
                             print("Archivo subido exitosamente.")
                         else:
@@ -82,24 +76,21 @@ def on_prediction_custom(predictions, frame):
     else:
         print("Predicciones no válidas o vacías.")
 
-# Inicializar la pipeline de inferencia con el callback personalizado
 pipeline = InferencePipeline.init(
-    model_id="detect_firearms/1",
-    video_reference=0,
-    on_prediction=on_prediction_custom,  
-    confidence=0.75,
-    iou_threshold=0.5,
-    max_detections=10,
-    mask_decode_mode="accurate",
-    tradeoff_factor=0.2,
-    active_learning_enabled=False,
-    max_fps=30,
+    model_id="detect_firearms/1",  # Identificador del modelo que se usará para la inferencia
+    video_reference=0,  # Fuente de video, en este caso 0 se refiere a la cámara web predeterminada
+    on_prediction=on_prediction_custom,  # Función de callback personalizada que se ejecutará en cada predicción
+    confidence=0.85,  # Umbral de confianza para considerar una detección válida (85%)
+    iou_threshold=0.5,  # Umbral de Intersección sobre Unión (IoU) para el Non-Maximum Suppression (NMS)
+    max_detections=5,  # Número máximo de detecciones permitidas por cuadro
+    mask_decode_mode="accurate",  # Modo de decodificación de máscaras de segmentación, "accurate" para mayor precisión
+    tradeoff_factor=0.2,  # Factor de compensación entre velocidad y precisión, valores más bajos priorizan la precisión
+    active_learning_enabled=False,  # Deshabilita el aprendizaje activo en este pipeline
+    max_fps=30,  # Límite máximo de cuadros por segundo (FPS) para la inferencia
 )
 
 try:
-    # Iniciar la pipeline
     pipeline.start()
     pipeline.join()
 finally:
-    # Asegurarse de que los datos se escriban en el archivo CSV después de que la pipeline termine
-    write_to_csv(data_to_write)
+    pipeline.stop()
